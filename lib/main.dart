@@ -2,70 +2,77 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const PairBase());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class PairBase extends StatelessWidget {
+  const PairBase({super.key});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pair Base',
-      theme: ThemeData(
-        primarySwatch: Colors.amber,
-      ),
-      home: const MyHomePage(),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.amber),
+      debugShowCheckedModeBanner: false,
+      home: const Home(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class Home extends StatefulWidget {
+  const Home({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<Home> createState() => _HomeState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _HomeState extends State<Home> {
   String previousKey = "";
   String selectedKey = "";
   Map<dynamic, dynamic> root = {
     "Seguro Social": "123456789",
-    "Bancomer CVV": "1234",
-    "DHL Camiseta Hacktoberfest": "123456789",
     "Amigos": [
       "Juan",
       "Pedro",
       "Maria",
     ],
-    "Datos de mi trabajo": {
+    "Datos de mi empresa": {
       "Nombre de empresa": "TCS",
-      "Telefono": "123456789",
-      "Direccion": "Calle 123",
       "Mas info": {
-        "Nombre": "Maria",
-        "Apellido": "Gonzalez",
-        "Edad": "45",
-        "Telefono": "123456789",
-        "Direccion": "Calle 123",
+        "Telefono": "22211221",
       }
     }
   };
   dynamic currentSet = {};
   String title = "Pair Base";
+  final storage = const FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    currentSet = root;
+  }
+
+  Future<void> getRootData() async {
+    root = jsonDecode(await storage.read(key: "root") ?? jsonEncode(root));
+  }
+
+  void setDummyData() {
+    storage.write(key: "root", value: jsonEncode(root));
   }
 
   @override
   Widget build(BuildContext context) {
+    var scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (currentSet.isEmpty) {
+      getRootData();
+      setState(() {
+        currentSet = root;
+      });
+    }
     return Scaffold(
       appBar: AppBar(
         leading: Visibility(
@@ -90,6 +97,7 @@ class _MyHomePageState extends State<MyHomePage> {
             },
           ),
         ),
+        centerTitle: true,
         title: Text(title),
       ),
       body: Center(
@@ -98,8 +106,6 @@ class _MyHomePageState extends State<MyHomePage> {
           itemBuilder: (context, index) {
             return ListTile(
               leading: CircleAvatar(
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.black,
                 child: currentSet is List
                     ? Text(currentSet[index].toString()[0])
                     : Text(currentSet.keys.elementAt(index).toString()[0]),
@@ -109,10 +115,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   : Text(currentSet.keys.elementAt(index).toString()),
               subtitle: currentSet is List
                   ? null
-                  : Text(
-                      currentSet.values.elementAt(index).toString().length > 20
-                          ? "Click to see more"
-                          : currentSet.values.elementAt(index).toString()),
+                  : currentSet.values.elementAt(index) is Map
+                      ? const Text("Click to see more")
+                      : Text(currentSet.values.elementAt(index).toString()),
               trailing: Visibility(
                 visible: currentSet is Map &&
                     (currentSet.values.elementAt(index) is Map ||
@@ -120,31 +125,96 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: const Icon(Icons.arrow_forward_ios),
               ),
               onTap: () async {
-                if (currentSet.values.elementAt(index) is Map) {
-                  setState(() {
-                    if (selectedKey != "") {
-                      previousKey = selectedKey;
-                    }
-                    selectedKey = currentSet.keys.elementAt(index);
-                    title = selectedKey;
-                    currentSet = currentSet.values.elementAt(index);
-                  });
-                } else if (currentSet.values.elementAt(index) is List) {
-                  setState(() {
-                    if (selectedKey != "") {
-                      previousKey = selectedKey;
-                    }
-                    selectedKey = currentSet.keys.elementAt(index);
-                    title = selectedKey;
-                    currentSet = currentSet.values.elementAt(index);
-                  });
+                if (currentSet is List) {
+                  await Clipboard.setData(
+                      ClipboardData(text: currentSet[index].toString()));
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text("Copied to clipboard"),
+                      duration: Duration(milliseconds: 500),
+                    ),
+                  );
                 } else {
-                  await Clipboard.setData(ClipboardData(
-                      text: currentSet.values.elementAt(index).toString()));
+                  if (currentSet.values.elementAt(index) is Map) {
+                    setState(() {
+                      if (selectedKey != "") {
+                        previousKey = selectedKey;
+                      }
+                      selectedKey = currentSet.keys.elementAt(index);
+                      title = selectedKey;
+                      currentSet = currentSet.values.elementAt(index);
+                    });
+                  } else if (currentSet.values.elementAt(index) is List) {
+                    setState(() {
+                      if (selectedKey != "") {
+                        previousKey = selectedKey;
+                      }
+                      selectedKey = currentSet.keys.elementAt(index);
+                      title = selectedKey;
+                      currentSet = currentSet.values.elementAt(index);
+                    });
+                  } else {
+                    await Clipboard.setData(ClipboardData(
+                        text: currentSet.values.elementAt(index).toString()));
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text("Copied to clipboard"),
+                        duration: Duration(milliseconds: 500),
+                      ),
+                    );
+                  }
                 }
               },
             );
           },
+        ),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.home),
+              onPressed: () {
+                setState(() {
+                  selectedKey = "";
+                  title = 'Pair Base';
+                  currentSet = root;
+                });
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Delete"),
+                    content:
+                        const Text("Are you sure you want to delete this?"),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text("Cancel"),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          storage.deleteAll();
+                          setState(() {
+                            currentSet = {};
+                          });
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text("Delete"),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -152,6 +222,8 @@ class _MyHomePageState extends State<MyHomePage> {
         tooltip: 'Add',
         child: const Icon(Icons.add),
       ),
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.miniCenterDocked,
     );
   }
 }
