@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:pair_base/enums/data_type.dart';
-import 'package:pair_base/validations.dart';
+import 'package:pair_base/helpers.dart';
 import 'package:pair_base/widgets/empty_data_set.dart';
+import 'package:pair_base/widgets/new_item_fab.dart';
 
 void main() {
   runApp(const PairBase());
@@ -51,6 +51,13 @@ class _HomeState extends State<Home> {
     super.initState();
   }
 
+  @override
+  void dispose() {
+    _keyController.dispose();
+    _valueController.dispose();
+    super.dispose();
+  }
+
   Future<Map<String, dynamic>> getRootData() async {
     var root = jsonDecode(await storage.read(key: "root") ?? "{}");
     setState(() {
@@ -63,11 +70,18 @@ class _HomeState extends State<Home> {
     return root;
   }
 
-  @override
-  void dispose() {
-    _keyController.dispose();
-    _valueController.dispose();
-    super.dispose();
+  void createList(String key) async {
+    var result = addNewList(selectedKey!, key);
+    setState(() {
+      currentSet = result;
+    });
+  }
+
+  void addListValue(String newValue) async {
+    var result = addValueToList(selectedKey!, newValue);
+    setState(() {
+      currentSet = result;
+    });
   }
 
   @override
@@ -169,44 +183,12 @@ class _HomeState extends State<Home> {
                   ],
                 ),
               ),
-              floatingActionButton: ExpandableFab(
-                child: const Icon(Icons.add),
-                children: selectedKey != null
-                    ? [
-                        FloatingActionButton.small(
-                          onPressed: () async =>
-                              await addData(context, DataType.string),
-                          tooltip: 'Text',
-                          child: const Icon(Icons.text_fields),
-                        ),
-                        FloatingActionButton.small(
-                          onPressed: () async =>
-                              await addData(context, DataType.number),
-                          tooltip: 'Number',
-                          child: const Icon(Icons.numbers),
-                        ),
-                      ]
-                    : [
-                        FloatingActionButton.small(
-                          onPressed: () async =>
-                              await addData(context, DataType.string),
-                          tooltip: 'Text',
-                          child: const Icon(Icons.text_fields),
-                        ),
-                        FloatingActionButton.small(
-                          onPressed: () async =>
-                              await addData(context, DataType.number),
-                          tooltip: 'Number',
-                          child: const Icon(Icons.numbers),
-                        ),
-                        FloatingActionButton.small(
-                          onPressed: () async =>
-                              await addData(context, DataType.list),
-                          tooltip: 'List',
-                          child: const Icon(Icons.data_array),
-                        )
-                      ],
-              ),
+              floatingActionButton: NewItemFab(
+                  selectedKey: selectedKey,
+                  formKey: _formKey,
+                  currentSet: currentSet,
+                  keyController: _keyController,
+                  valueController: _valueController),
               floatingActionButtonLocation: ExpandableFab.location);
         } else {
           return const Scaffold(
@@ -257,106 +239,5 @@ class _HomeState extends State<Home> {
         ),
       );
     }
-  }
-
-  addData(BuildContext context, DataType dataType) async {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: dataType == DataType.string
-            ? const Text("Add Text")
-            : dataType == DataType.number
-                ? const Text("Add Number")
-                : const Text("Add List"),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              Visibility(
-                visible: currentSet is! List,
-                child: TextFormField(
-                  controller: _keyController,
-                  validator: (key) => validateKey(key, currentSet),
-                  decoration: const InputDecoration(
-                    hintText: "Key",
-                  ),
-                ),
-              ),
-              Visibility(
-                visible: dataType != DataType.list,
-                child: TextFormField(
-                  controller: _valueController,
-                  validator:
-                      dataType == DataType.string || dataType == DataType.list
-                          ? validateEmpty
-                          : validateNumber,
-                  decoration: const InputDecoration(
-                    hintText: "Value",
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                if (dataType == DataType.list) {
-                  addNewList(_keyController.text);
-                } else if (dataType == DataType.number) {
-                  if (selectedKey != null) {
-                    addValueToList(_valueController.text);
-                  } else {
-                    addNewRow(_keyController.text, _valueController.text);
-                  }
-                } else if (dataType == DataType.string) {
-                  if (selectedKey != null) {
-                    addValueToList(_valueController.text);
-                  } else {
-                    addNewRow(_keyController.text, _valueController.text);
-                  }
-                }
-                Navigator.of(context).pop();
-              }
-            },
-            child: const Text("Add"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void addNewRow(String key, dynamic value) async {
-    var root = await storage.read(key: "root");
-    Map<String, dynamic> rootMap = jsonDecode(root ?? "{}");
-    rootMap.addEntries([MapEntry(key, value)]);
-    storage.write(key: "root", value: jsonEncode(rootMap));
-  }
-
-  void addNewList(String key) async {
-    var root = await storage.read(key: "root");
-    Map<String, dynamic> rootMap = jsonDecode(root ?? "{}");
-    rootMap.addEntries([MapEntry(key, [])]);
-    setState(() {
-      currentSet = rootMap[selectedKey];
-    });
-    storage.write(key: "root", value: jsonEncode(rootMap));
-  }
-
-  void addValueToList(String newValue) async {
-    var root = await storage.read(key: "root");
-    Map<String, dynamic> rootMap = jsonDecode(root ?? "{}");
-    rootMap.update(selectedKey!, (value) => [...value, newValue]);
-    setState(() {
-      currentSet = rootMap[selectedKey];
-    });
-    storage.write(key: "root", value: jsonEncode(rootMap));
   }
 }
