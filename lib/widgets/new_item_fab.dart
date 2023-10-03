@@ -26,7 +26,16 @@ class NewItemFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpandableFab(
-      child: const Icon(Icons.add),
+      openButtonBuilder: RotateFloatingActionButtonBuilder(
+        child: const Icon(Icons.add),
+        fabSize: ExpandableFabSize.regular,
+        shape: const CircleBorder(),
+      ),
+      closeButtonBuilder: DefaultFloatingActionButtonBuilder(
+        child: const Icon(Icons.close),
+        fabSize: ExpandableFabSize.small,
+        shape: const CircleBorder(),
+      ),
       children: selectedKey != null
           ? [
               NewTextButton(

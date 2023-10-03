@@ -105,42 +105,62 @@ class _HomeState extends State<Home> {
               ),
               body: root.isEmpty
                   ? const EmptyDataSet()
-                  : Center(
-                      child: ListView.builder(
-                      itemCount: currentSet.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          leading: CircleAvatar(
-                            child: currentSet is! List
-                                ? Text(currentSet.keys
-                                    .elementAt(index)
-                                    .toString()[0])
-                                : currentSet.isEmpty
-                                    ? Text(currentSet.toString())
-                                    : Text(currentSet[index].toString()[0]),
-                          ),
-                          title: currentSet is! List
-                              ? Text(
-                                  currentSet.keys.elementAt(index).toString())
-                              : currentSet.isEmpty
-                                  ? Text(currentSet.toString())
-                                  : Text(currentSet[index].toString()),
-                          subtitle: currentSet is List
-                              ? null
-                              : Text(currentSet.values
-                                  .elementAt(index)
-                                  .toString()),
-                          trailing: Visibility(
-                            visible: currentSet is! List &&
-                                currentSet.values.elementAt(index) is List,
-                            child: const Icon(Icons.arrow_forward_ios),
-                          ),
-                          onTap: () async {
-                            await evaluateItemSelection(index, context);
-                          },
-                        );
-                      },
-                    )),
+                  : Center(child: Builder(builder: (context) {
+                      return ListView.builder(
+                        itemCount: currentSet.length,
+                        itemBuilder: (context, index) {
+                          var currentKey = currentSet is List
+                              ? currentSet[index]
+                              : currentSet.keys.elementAt(index);
+                          var currentValue = currentSet is List
+                              ? currentSet[index]
+                              : currentSet.values.elementAt(index);
+                          return Dismissible(
+                            key: Key(currentKey),
+                            onDismissed: (direction) {},
+                            background: Container(
+                              color: Colors.red,
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.all(20.0),
+                                    child: Icon(Icons.delete),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                child: currentSet is! List
+                                    ? Text(currentKey.toString()[0])
+                                    : currentSet.isEmpty
+                                        ? Text(currentSet.toString())
+                                        : Text(currentSet[index].toString()[0]),
+                              ),
+                              title: currentSet is! List
+                                  ? Text(currentKey.toString())
+                                  : currentSet.isEmpty
+                                      ? Text(currentSet.toString())
+                                      : Text(currentSet[index].toString()),
+                              subtitle: currentSet is List
+                                  ? null
+                                  : Text(currentSet.values
+                                      .elementAt(index)
+                                      .toString()),
+                              trailing: Visibility(
+                                visible:
+                                    currentSet is! List && currentValue is List,
+                                child: const Icon(Icons.arrow_forward_ios),
+                              ),
+                              onTap: () async {
+                                await evaluateItemSelection(index, context);
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    })),
               bottomNavigationBar: BottomAppBar(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -157,7 +177,7 @@ class _HomeState extends State<Home> {
                           builder: (_) => AlertDialog(
                             title: const Text("Delete"),
                             content: const Text(
-                                "Are you sure you want to delete this?"),
+                                "Are you sure you want to delete everything?"),
                             actions: [
                               TextButton(
                                 onPressed: () {
